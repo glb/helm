@@ -33,6 +33,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/apimachinery/pkg/util/validation"
+	api_yaml "k8s.io/apimachinery/pkg/util/yaml"
+
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/downloader"
 	"k8s.io/helm/pkg/getter"
@@ -367,19 +369,20 @@ func vals(valueFiles valueFiles, values []string, stringValues []string, fileVal
 	for _, filePath := range valueFiles {
 		currentMap := map[string]interface{}{}
 
-		var bytes []byte
+		var readBytes []byte
 		var err error
 		if strings.TrimSpace(filePath) == "-" {
-			bytes, err = ioutil.ReadAll(os.Stdin)
+			readBytes, err = ioutil.ReadAll(os.Stdin)
 		} else {
-			bytes, err = readFile(filePath, CertFile, KeyFile, CAFile)
+			readBytes, err = readFile(filePath, CertFile, KeyFile, CAFile)
 		}
 
 		if err != nil {
 			return []byte{}, err
 		}
 
-		if err := yaml.Unmarshal(bytes, &currentMap); err != nil {
+		d := api_yaml.NewYAMLOrJSONDecoder(bytes.NewReader(readBytes), 4096)
+		if err := d.Decode(&currentMap); err != nil {
 			return []byte{}, fmt.Errorf("failed to parse %s: %s", filePath, err)
 		}
 		// Merge with the previous map
